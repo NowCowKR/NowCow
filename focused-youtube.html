@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusTube — 집중 유튜브</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0a0a0f;
+    --bg2:      #111118;
+    --bg3:      #18181f;
+    --bg4:      #22222c;
+    --bg5:      #2c2c38;
+    --accent:   #e8ff47;
+    --accent2:  #c8e820;
+    --red:      #ff4757;
+    --blue:     #4dabf7;
+    --text:     #f0eeff;
+    --text2:    #8a879f;
+    --text3:    #4a4760;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(232,255,71,0.2);
+    --r:        10px;
+    --r2:       14px;
+    --r3:       20px;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 2px; }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 16px; height: 60px;
+  }
+  .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
+  .logo span { color: var(--accent); }
+
+  .search-wrap {
+    flex: 1; max-width: 560px; display: flex; gap: 0;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 40px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .search-wrap:focus-within { border-color: var(--border2); }
+  #searchInput {
+    flex: 1; background: none; border: none; outline: none; padding: 10px 18px;
+    color: var(--text); font-family: inherit; font-size: 14px;
+  }
+  #searchInput::placeholder { color: var(--text3); }
+  .search-btn {
+    padding: 10px 18px; background: none; border: none; cursor: pointer;
+    color: var(--text2); font-size: 16px; transition: color 0.15s;
+  }
+  .search-btn:hover { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+  .time-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 40px;
+    padding: 6px 14px; font-size: 12px; color: var(--text2); white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .time-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .time-badge.warning { border-color: rgba(255,71,87,0.4); color: var(--red); }
+  .time-badge.warning .dot { background: var(--red); }
+
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--bg3); border: 1px solid var(--border);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: all 0.15s; color: var(--text2);
+  }
+  .icon-btn:hover { border-color: var(--border2); color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .app-body { display: flex; min-height: calc(100vh - 60px); }
+
+  /* ── SIDEBAR ── */
+  aside {
+    width: 260px; flex-shrink: 0;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 20px;
+    position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+  }
+  .sidebar-section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+    color: var(--text3); text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .keyword-input-wrap { display: flex; gap: 6px; }
+  .keyword-input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 13px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .keyword-input:focus { border-color: var(--border2); }
+  .keyword-input::placeholder { color: var(--text3); }
+  .add-btn {
+    padding: 8px 14px; background: var(--accent); color: #0a0a0f;
+    border: none; border-radius: var(--r); cursor: pointer; font-weight: 600; font-size: 13px;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .add-btn:hover { background: var(--accent2); }
+
+  .keywords-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .keyword-tag {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--bg4); border: 1px solid var(--border); border-radius: 20px;
+    padding: 4px 10px 4px 12px; font-size: 12px; color: var(--text);
+    cursor: default; transition: border-color 0.15s; animation: tagIn 0.2s ease;
+  }
+  @keyframes tagIn { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+  .keyword-tag:hover { border-color: rgba(255,71,87,0.4); }
+  .keyword-tag .remove {
+    width: 16px; height: 16px; background: none; border: none; cursor: pointer;
+    color: var(--text3); font-size: 14px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; transition: all 0.15s; line-height: 1;
+  }
+  .keyword-tag .remove:hover { color: var(--red); background: rgba(255,71,87,0.15); }
+
+  .empty-keywords {
+    font-size: 12px; color: var(--text3); text-align: center; padding: 12px;
+    border: 1px dashed var(--text3); border-radius: var(--r); line-height: 1.6;
+  }
+
+  /* ── STATS SIDEBAR ── */
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 12px; color: var(--text2); }
+  .stat-val { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .stat-val.accent { color: var(--accent); }
+
+  .progress-outer { height: 4px; background: var(--bg4); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .progress-inner { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s; }
+  .progress-inner.danger { background: var(--red); }
+
+  /* ── MAIN CONTENT ── */
+  main { flex: 1; padding: 24px; overflow-y: auto; min-width: 0; }
+
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-title { font-size: 16px; font-weight: 600; }
+  .section-count { font-size: 12px; color: var(--text3); background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
+  .active-filter { font-size: 12px; color: var(--accent); background: rgba(232,255,71,0.1); border: 1px solid rgba(232,255,71,0.2); padding: 2px 10px; border-radius: 10px; }
+
+  /* ── VIDEO GRID ── */
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .video-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--r2); overflow: hidden; cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    animation: cardIn 0.3s ease both;
+  }
+  @keyframes cardIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .video-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(232,255,71,0.15);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .thumb-wrap { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+  .video-card:hover .thumb-wrap img { transform: scale(1.04); }
+  .thumb-overlay {
+    position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .video-card:hover .thumb-overlay { opacity: 1; }
+  .play-icon {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.8);
+    width: 48px; height: 48px; background: rgba(232,255,71,0.9); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; opacity: 0; transition: all 0.2s; padding-left: 4px;
+  }
+  .video-card:hover .play-icon { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .duration-badge {
+    position: absolute; bottom: 8px; right: 8px;
+    background: rgba(0,0,0,0.85); color: #fff; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace; padding: 2px 6px; border-radius: 4px;
+  }
+
+  .video-info { padding: 12px 14px 14px; }
+  .video-title { font-size: 13px; font-weight: 500; line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .video-meta { display: flex; align-items: center; gap: 8px; }
+  .channel-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--bg4); flex-shrink: 0; overflow: hidden; }
+  .channel-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .channel-icon-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: var(--accent); }
+  .video-channel { font-size: 12px; color: var(--text2); }
+  .video-stats { font-size: 11px; color: var(--text3); margin-left: auto; white-space: nowrap; }
+  .keyword-match { display: inline-flex; align-items: center; gap: 3px; margin-top: 6px; font-size: 10px; background: rgba(232,255,71,0.08); color: var(--accent); border: 1px solid rgba(232,255,71,0.15); border-radius: 4px; padding: 1px 6px; }
+
+  /* ── STATES ── */
+  .loading-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+  .skeleton { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r2); overflow: hidden; }
+  .skel-thumb { aspect-ratio: 16/9; background: var(--bg3); animation: shimmer 1.5s infinite; }
+  .skel-info { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .skel-line { height: 10px; background: var(--bg3); border-radius: 4px; animation: shimmer 1.5s infinite; }
+  .skel-line.short { width: 60%; }
+  @keyframes shimmer { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+  .empty-state { text-align: center; padding: 80px 20px; }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; color: var(--text2); max-width: 360px; margin: 0 auto; line-height: 1.6; }
+
+  .error-state { background: rgba(255,71,87,0.08); border: 1px solid rgba(255,71,87,0.2); border-radius: var(--r2); padding: 20px; margin-bottom: 20px; }
+  .error-title { font-size: 14px; font-weight: 600; color: var(--red); margin-bottom: 6px; }
+  .error-sub { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  /* ── API KEY MODAL ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal-backdrop.hidden { display: none; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r3);
+    padding: 32px; width: min(460px, 90vw); animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+  .modal-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 12px 16px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    outline: none; margin-bottom: 12px; transition: border-color 0.15s;
+  }
+  .modal-input:focus { border-color: var(--border2); }
+  .modal-hint { font-size: 11px; color: var(--text3); margin-bottom: 20px; line-height: 1.7; }
+  .modal-hint a { color: var(--blue); text-decoration: none; }
+  .modal-hint a:hover { text-decoration: underline; }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-outline { padding: 10px 20px; background: none; border: 1px solid var(--border); border-radius: var(--r); color: var(--text2); font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-outline:hover { border-color: var(--border2); color: var(--text); }
+  .btn-accent { padding: 10px 24px; background: var(--accent); border: none; border-radius: var(--r); color: #0a0a0f; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .btn-accent:hover { background: var(--accent2); }
+
+  /* ── VIDEO PLAYER OVERLAY ── */
+  .player-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+  .player-backdrop.hidden { display: none; }
+  .player-wrap { width: min(900px, 95vw); }
+  .player-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .player-title { flex: 1; font-size: 15px; font-weight: 600; line-height: 1.5; }
+  .player-close { width: 36px; height: 36px; background: var(--bg3); border: 1px solid var(--border); border-radius: 50%; cursor: pointer; color: var(--text2); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .player-close:hover { border-color: var(--red); color: var(--red); }
+  .iframe-wrap { position: relative; aspect-ratio: 16/9; background: #000; border-radius: var(--r2); overflow: hidden; }
+  .iframe-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+  /* ── TOAST NOTIFICATIONS ── */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 400; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+  .toast {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--r2); padding: 14px 18px; min-width: 280px; max-width: 340px;
+    pointer-events: all; animation: toastIn 0.3s ease;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .toast.danger { border-color: rgba(255,71,87,0.5); }
+  @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+  .toast-icon { font-size: 20px; flex-shrink: 0; }
+  .toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .toast-body { font-size: 12px; color: var(--text2); }
+
+  /* ── STATS PANEL ── */
+  .stats-panel { display: none; }
+  .stats-panel.show { display: block; }
+  .stats-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .stats-tab { padding: 8px 18px; background: var(--bg3); border: 1px solid var(--border); border-radius: 40px; font-size: 13px; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .stats-tab.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; font-weight: 600; }
+  .stats-chart { display: flex; align-items: flex-end; gap: 8px; height: 120px; margin-top: 12px; }
+  .chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .chart-bar { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.4s; opacity: 0.8; }
+  .chart-bar:hover { opacity: 1; }
+  .chart-label { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+  .chart-val { font-size: 9px; color: var(--text2); }
+
+  @media (max-width: 900px) {
+    aside { width: 220px; }
+    .video-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  }
+  @media (max-width: 700px) {
+    aside { display: none; }
+    main { padding: 16px; }
+    header { padding: 0 16px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div class="modal-backdrop" id="apiModal">
+  <div class="modal">
+    <div class="modal-title">🎯 FocusTube 설정</div>
+    <div class="modal-sub">YouTube Data API 키를 입력하면 실제 영상을 불러옵니다. 무료로 발급받을 수 있습니다.</div>
+    <input class="modal-input" id="apiKeyInput" placeholder="AIza...로 시작하는 API 키 입력" autocomplete="off">
+    <div class="modal-hint">
+      📌 API 키 발급 방법:<br>
+      1. <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> 접속<br>
+      2. 새 프로젝트 생성 → APIs & Services → Enable APIs<br>
+      3. <strong>YouTube Data API v3</strong> 활성화<br>
+      4. Credentials → Create API Key<br>
+      <br>
+      무료 할당량: 하루 10,000 유닛 (일반 사용 충분)
+    </div>
+    <div class="modal-btns">
+      <button class="btn-outline" onclick="skipApiKey()">나중에 (데모 모드)</button>
+      <button class="btn-accent" onclick="saveApiKey()">저장 후 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIDEO PLAYER -->
+<div class="player-backdrop hidden" id="playerBackdrop">
+  <div class="player-wrap">
+    <div class="player-header">
+      <div class="player-title" id="playerTitle"></div>
+      <button class="player-close" onclick="closePlayer()">✕</button>
+    </div>
+    <div class="iframe-wrap">
+      <iframe id="playerIframe" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Focus<span>Tube</span></div>
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="검색어 입력..." onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="search-btn" onclick="doSearch()">🔍</button>
+  </div>
+  <div class="header-right">
+    <div class="time-badge" id="sessionBadge">
+      <span class="dot"></span>
+      <span id="sessionTime">00:00</span>
+    </div>
+    <button class="icon-btn" title="통계" onclick="toggleStats()">📊</button>
+    <button class="icon-btn" title="API 키 변경" onclick="showApiModal()">⚙️</button>
+  </div>
+</header>
+
+<!-- BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div>
+      <div class="sidebar-section-title">집중 키워드</div>
+      <div class="keyword-input-wrap" style="margin-bottom:10px">
+        <input class="keyword-input" id="keywordInput" placeholder="예: 프로그래밍, 요리" onkeydown="if(event.key==='Enter')addKeyword()">
+        <button class="add-btn" onclick="addKeyword()">추가</button>
+      </div>
+      <div class="keywords-list" id="keywordsList"></div>
+      <div class="empty-keywords" id="keywordsEmpty" style="display:none">
+        키워드를 추가하면<br>관련 영상만 표시됩니다
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">오늘 시청 현황</div>
+      <div>
+        <div class="stat-row">
+          <span class="stat-label">오늘 시청 시간</span>
+          <span class="stat-val accent" id="todayTime">0분</span>
+        </div>
+        <div class="progress-outer">
+          <div class="progress-inner" id="todayProgress" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">이번 주</span>
+        <span class="stat-val" id="weekTime">0분</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">이번 달</span>
+        <span class="stat-val" id="monthTime">0분</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">시청 영상 수</span>
+        <span class="stat-val" id="videoCount">0개</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">일일 목표</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <input class="keyword-input" id="goalInput" type="number" placeholder="분 (기본 60)" min="10" max="480" style="width:80px">
+        <button class="add-btn" onclick="setGoal()" style="padding:8px 12px">설정</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">목표: <span id="goalDisplay">60분</span></div>
+    </div>
+
+    <div style="margin-top:auto">
+      <button onclick="clearData()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:var(--r);color:var(--text3);font-size:12px;cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='rgba(255,71,87,0.4)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">데이터 초기화</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="mainArea">
+    <!-- STATS PANEL -->
+    <div class="stats-panel" id="statsPanel">
+      <div class="section-header">
+        <div class="section-title">📊 시청 통계</div>
+      </div>
+      <div class="stats-tabs">
+        <button class="stats-tab active" onclick="switchStatsTab('week',this)">주간</button>
+        <button class="stats-tab" onclick="switchStatsTab('month',this)">월간</button>
+      </div>
+      <div class="stats-chart" id="statsChart"></div>
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)"></div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div id="contentArea">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🎯</div>
+        <div class="empty-title">집중 유튜브에 오신 것을 환영합니다</div>
+        <div class="empty-sub">왼쪽에 관심 키워드를 추가하면 관련 영상만 추천됩니다. 불필요한 알고리즘 없이 원하는 콘텐츠만 즐기세요.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE & STORAGE
+// ═══════════════════════════════════════════════
+const S = {
+  apiKey: localStorage.getItem('ft_apiKey') || '',
+  demoMode: false,
+  keywords: JSON.parse(localStorage.getItem('ft_keywords') || '[]'),
+  watchData: JSON.parse(localStorage.getItem('ft_watchData') || '{}'),
+  videoCount: parseInt(localStorage.getItem('ft_videoCount') || '0'),
+  dailyGoal: parseInt(localStorage.getItem('ft_goal') || '60'),
+  sessionStart: Date.now(),
+  sessionMinutes: 0,
+  lastHourAlert: 0,
+  currentSearch: '',
+};
+
+function save() {
+  localStorage.setItem('ft_keywords', JSON.stringify(S.keywords));
+  localStorage.setItem('ft_watchData', JSON.stringify(S.watchData));
+  localStorage.setItem('ft_videoCount', '' + S.videoCount);
+  localStorage.setItem('ft_goal', '' + S.dailyGoal);
+}
+
+function todayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function addWatchTime(mins) {
+  const k = todayKey();
+  S.watchData[k] = (S.watchData[k] || 0) + mins;
+  S.videoCount++;
+  save();
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════
+//  SESSION TIMER
+// ═══════════════════════════════════════════════
+setInterval(() => {
+  const elapsed = Math.floor((Date.now() - S.sessionStart) / 60000);
+  S.sessionMinutes = elapsed;
+
+  const m = elapsed % 60, h = Math.floor(elapsed / 60);
+  const display = h > 0 ? `${h}:${String(m).padStart(2,'0')}` : `${String(elapsed % 60).padStart(2,'0')}:${String(Math.floor((Date.now() - S.sessionStart) / 1000) % 60).padStart(2,'0')}`;
+
+  const badge = document.getElementById('sessionBadge');
+  const timeEl = document.getElementById('sessionTime');
+  const secs = Math.floor((Date.now() - S.sessionStart) / 1000);
+  const mm = String(Math.floor(secs/60)).padStart(2,'0');
+  const ss = String(secs%60).padStart(2,'0');
+  timeEl.textContent = `${mm}:${ss}`;
+
+  // 1시간마다 경고
+  if (elapsed > 0 && elapsed % 60 === 0 && elapsed !== S.lastHourAlert) {
+    S.lastHourAlert = elapsed;
+    badge.className = 'time-badge warning';
+    showToast('⏰', '시청 시간 경고', `${Math.floor(elapsed/60)}시간째 시청 중입니다. 잠시 쉬어가세요!`, true);
+  }
+
+  // 오늘 시청 시간 누적 (페이지 체류 기준)
+  const k = todayKey();
+  S.watchData[k] = (S.watchData[k] || 0);
+  // 실시간 반영을 위해 세션 시간 더해서 표시만 함
+  updateStats();
+}, 1000);
+
+// ═══════════════════════════════════════════════
+//  KEYWORD MANAGEMENT
+// ═══════════════════════════════════════════════
+function addKeyword() {
+  const input = document.getElementById('keywordInput');
+  const kw = input.value.trim();
+  if (!kw || S.keywords.includes(kw)) { input.value = ''; return; }
+  S.keywords.push(kw);
+  input.value = '';
+  save();
+  renderKeywords();
+  loadVideos();
+}
+
+function removeKeyword(kw) {
+  S.keywords = S.keywords.filter(k => k !== kw);
+  save();
+  renderKeywords();
+  loadVideos();
+}
+
+function renderKeywords() {
+  const list = document.getElementById('keywordsList');
+  const empty = document.getElementById('keywordsEmpty');
+  list.innerHTML = '';
+  if (!S.keywords.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  S.keywords.forEach((kw, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'keyword-tag';
+    tag.innerHTML = `<span>${kw}</span><button class="remove" onclick="removeKeyword('${kw.replace(/'/g,"\\'")}')">×</button>`;
+    tag.style.animationDelay = (i * 0.05) + 's';
+    list.appendChild(tag);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════
+function updateStats() {
+  const k = todayKey();
+  const sessionMins = Math.floor((Date.now() - S.sessionStart) / 60000);
+  const todayMins = (S.watchData[k] || 0) + sessionMins;
+  const weekMins = getWeekMins() + sessionMins;
+  const monthMins = getMonthMins() + sessionMins;
+
+  document.getElementById('todayTime').textContent = formatMins(todayMins);
+  document.getElementById('weekTime').textContent = formatMins(weekMins);
+  document.getElementById('monthTime').textContent = formatMins(monthMins);
+  document.getElementById('videoCount').textContent = S.videoCount + '개';
+
+  const pct = Math.min(100, Math.round(todayMins / S.dailyGoal * 100));
+  const bar = document.getElementById('todayProgress');
+  bar.style.width = pct + '%';
+  bar.className = 'progress-inner' + (pct >= 100 ? ' danger' : '');
+}
+
+function getWeekMins() {
+  const now = new Date(); let total = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    const k = d.toISOString().split('T')[0];
+    total += (S.watchData[k] || 0);
+  }
+  return total;
+}
+
+function getMonthMins() {
+  const prefix = new Date().toISOString().slice(0,7);
+  return Object.entries(S.watchData).filter(([k]) => k.startsWith(prefix)).reduce((a,[,v]) => a+v, 0);
+}
+
+function formatMins(m) {
+  if (m < 60) return m + '분';
+  return Math.floor(m/60) + '시간 ' + (m%60) + '분';
+}
+
+function setGoal() {
+  const val = parseInt(document.getElementById('goalInput').value);
+  if (val > 0) { S.dailyGoal = val; save(); }
+  document.getElementById('goalDisplay').textContent = S.dailyGoal + '분';
+  document.getElementById('goalInput').value = '';
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════
+//  STATS PANEL
+// ═══════════════════════════════════════════════
+let statsVisible = false;
+let statsTabMode = 'week';
+
+function toggleStats() {
+  statsVisible = !statsVisible;
+  document.getElementById('statsPanel').classList.toggle('show', statsVisible);
+  if (statsVisible) renderStatsChart(statsTabMode);
+}
+
+function switchStatsTab(mode, btn) {
+  statsTabMode = mode;
+  document.querySelectorAll('.stats-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStatsChart(mode);
+}
+
+function renderStatsChart(mode) {
+  const chart = document.getElementById('statsChart');
+  chart.innerHTML = '';
+  const now = new Date();
+  let items = [];
+
+  if (mode === 'week') {
+    const days = ['일','월','화','수','목','금','토'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now); d.setDate(now.getDate() - i);
+      const k = d.toISOString().split('T')[0];
+      const mins = (S.watchData[k] || 0) + (i===0 ? Math.floor((Date.now()-S.sessionStart)/60000) : 0);
+      items.push({ label: days[d.getDay()], val: mins });
+    }
+  } else {
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now); d.setDate(now.getDate() - i);
+      const k = d.toISOString().split('T')[0];
+      const mins = (S.watchData[k] || 0) + (i===0 ? Math.floor((Date.now()-S.sessionStart)/60000) : 0);
+      items.push({ label: d.getDate()+'', val: mins });
+    }
+  }
+
+  const maxVal = Math.max(...items.map(i => i.val), 1);
+  items.forEach(item => {
+    const pct = Math.round(item.val / maxVal * 100);
+    const wrap = document.createElement('div');
+    wrap.className = 'chart-bar-wrap';
+    wrap.innerHTML = `
+      <div class="chart-val">${item.val > 0 ? formatMins(item.val) : ''}</div>
+      <div class="chart-bar" style="height:${Math.max(pct,2)}%" title="${item.val}분"></div>
+      <div class="chart-label">${item.label}</div>`;
+    chart.appendChild(wrap);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  API KEY
+// ═══════════════════════════════════════════════
+function showApiModal() { document.getElementById('apiModal').classList.remove('hidden'); }
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return;
+  S.apiKey = key;
+  localStorage.setItem('ft_apiKey', key);
+  S.demoMode = false;
+  document.getElementById('apiModal').classList.add('hidden');
+  loadVideos();
+}
+function skipApiKey() {
+  S.demoMode = true;
+  document.getElementById('apiModal').classList.add('hidden');
+  loadDemoVideos();
+}
+
+// ═══════════════════════════════════════════════
+//  YOUTUBE API — JSONP (CORS 우회)
+// ═══════════════════════════════════════════════
+let _jsonpCallbackCounter = 0;
+
+function jsonpFetch(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__yt_cb_' + (_jsonpCallbackCounter++);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('요청 시간 초과. 인터넷 연결을 확인하세요.'));
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = (data) => {
+      cleanup();
+      if (data && data.error) reject(new Error(data.error.message || 'API 오류'));
+      else resolve(data);
+    };
+
+    script.onerror = () => { cleanup(); reject(new Error('API 키 오류 또는 YouTube Data API v3가 활성화되지 않았습니다.')); };
+    script.src = url + `&callback=${cbName}`;
+    document.head.appendChild(script);
+  });
+}
+
+function buildYtUrl(query, maxResults = 24) {
+  return `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&relevanceLanguage=ko&key=${S.apiKey}`;
+}
+
+async function loadVideos() {
+  if (!S.keywords.length) {
+    document.getElementById('contentArea').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <div class="empty-title">키워드를 추가해 주세요</div>
+        <div class="empty-sub">왼쪽 사이드바에서 관심 키워드를 추가하면 해당 키워드와 관련된 영상만 표시됩니다.</div>
+      </div>`;
+    return;
+  }
+
+  if (S.demoMode || !S.apiKey) { loadDemoVideos(); return; }
+
+  showSkeleton();
+  S.currentSearch = '';
+
+  const query = S.keywords.join(' OR ');
+  try {
+    const data = await jsonpFetch(buildYtUrl(query));
+    renderVideos(data.items, query);
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) { loadVideos(); return; }
+
+  if (S.keywords.length > 0) {
+    const matches = S.keywords.some(kw => q.toLowerCase().includes(kw.toLowerCase()) || kw.toLowerCase().includes(q.toLowerCase().split(' ')[0]));
+    if (!matches) {
+      showToast('🚫', '키워드 필터', `"${q}"는 설정한 키워드와 관련이 없습니다. 집중 모드를 유지하세요!`);
+    }
+  }
+
+  if (S.demoMode || !S.apiKey) { loadDemoVideos(q); return; }
+
+  showSkeleton();
+  S.currentSearch = q;
+
+  const filterQuery = S.keywords.length > 0 ? `${q} ${S.keywords.join(' ')}` : q;
+
+  try {
+    const data = await jsonpFetch(buildYtUrl(filterQuery));
+    renderVideos(data.items, q, true);
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+function renderVideos(items, query, isSearch = false) {
+  if (!items || !items.length) {
+    document.getElementById('contentArea').innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">영상을 찾을 수 없습니다</div><div class="empty-sub">다른 키워드를 시도해 보세요.</div></div>`;
+    return;
+  }
+
+  const matchedKw = kw => S.keywords.filter(k => {
+    const title = kw.toLowerCase();
+    return title.includes(k.toLowerCase());
+  });
+
+  let html = `<div class="section-header">
+    <div class="section-title">${isSearch ? '검색 결과' : '추천 영상'}</div>
+    <span class="section-count">${items.length}개</span>
+    ${S.keywords.length ? `<span class="active-filter">🎯 ${S.keywords.join(', ')}</span>` : ''}
+  </div>
+  <div class="video-grid" id="videoGrid">`;
+
+  items.forEach((item, idx) => {
+    const id = item.id.videoId || item.id;
+    const sn = item.snippet;
+    const thumb = sn.thumbnails?.high?.url || sn.thumbnails?.medium?.url || sn.thumbnails?.default?.url;
+    const title = sn.title;
+    const channel = sn.channelTitle;
+    const date = new Date(sn.publishedAt).toLocaleDateString('ko-KR');
+    const matched = matchedKw(title + ' ' + sn.description);
+
+    html += `<div class="video-card" style="animation-delay:${idx*0.04}s" onclick="openVideo('${id}','${title.replace(/'/g,"&#39;")}','${channel.replace(/'/g,"&#39;")}')">
+      <div class="thumb-wrap">
+        <img src="${thumb}" alt="${title}" loading="lazy">
+        <div class="thumb-overlay"></div>
+        <div class="play-icon">▶</div>
+      </div>
+      <div class="video-info">
+        <div class="video-title">${title}</div>
+        <div class="video-meta">
+          <div class="channel-icon"><div class="channel-icon-placeholder">${channel.charAt(0)}</div></div>
+          <div class="video-channel">${channel}</div>
+          <div class="video-stats">${date}</div>
+        </div>
+        ${matched.length ? `<div class="keyword-match">🎯 ${matched[0]}</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  html += '</div>';
+  document.getElementById('contentArea').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════════
+function loadDemoVideos(search = '') {
+  const kws = S.keywords.length ? S.keywords : ['추천'];
+  const demoData = [
+    { id: 'dQw4w9WgXcQ', title: '파이썬 완전 정복 - 기초부터 실전까지', channel: 'Dev학교', kw: '프로그래밍' },
+    { id: 'rfscVS0vtbw', title: 'JavaScript ES2024 새로운 기능 총정리', channel: '코딩마스터', kw: '프로그래밍' },
+    { id: 'bMknfKXIFA8', title: '리액트로 풀스택 앱 만들기', channel: '개발자TV', kw: '프로그래밍' },
+    { id: '9bZkp7q19f0', title: '건강한 아침 루틴 30분 완성', channel: '헬스라이프', kw: '건강' },
+    { id: 'CevxZvSJLk8', title: '제주도 혼자 여행 브이로그', channel: '여행스케치', kw: '여행' },
+    { id: 'tgbNymZ7vqY', title: '머신러닝 입문 강의 - 딥러닝 기초', channel: 'AI학원', kw: '인공지능' },
+    { id: 'y6120QOlsfU', title: '요리 초보도 가능! 파스타 레시피', channel: '쿡방TV', kw: '요리' },
+    { id: 'kJQP7kiw5Fk', title: '독서 습관 만들기 - 1년에 50권 읽는 법', channel: '독서모임', kw: '자기계발' },
+    { id: 'JGwWNGJdvx8', title: 'TypeScript 실전 프로젝트', channel: '프론트엔드TV', kw: '프로그래밍' },
+    { id: 'OPf0YbXqDm0', title: '맨몸운동 30분 루틴 - 홈트레이닝', channel: '피트니스TV', kw: '운동' },
+    { id: 'lp-EO5I60KA', title: 'Vue 3 Composition API 마스터', channel: '웹개발강의', kw: '프로그래밍' },
+    { id: 'M7lc1UVf-VE', title: '생산성을 높이는 노션 활용법', channel: '생산성채널', kw: '생산성' },
+  ];
+
+  let filtered = demoData;
+  if (S.keywords.length) {
+    filtered = demoData.filter(v =>
+      S.keywords.some(kw => v.kw.includes(kw) || v.title.toLowerCase().includes(kw.toLowerCase()))
+    );
+    if (!filtered.length) filtered = demoData;
+  }
+  if (search) filtered = filtered.filter(v => v.title.toLowerCase().includes(search.toLowerCase()) || v.kw.toLowerCase().includes(search.toLowerCase()));
+
+  const items = filtered.map(v => ({
+    id: { videoId: v.id },
+    snippet: {
+      title: v.title,
+      channelTitle: v.channel,
+      publishedAt: new Date(Date.now() - Math.random()*30*86400000).toISOString(),
+      thumbnails: { high: { url: `https://img.youtube.com/vi/${v.id}/hqdefault.jpg` } },
+      description: v.kw
+    }
+  }));
+
+  renderVideos(items, search || S.keywords.join(' '));
+  if (!localStorage.getItem('ft_demoNotified')) {
+    localStorage.setItem('ft_demoNotified','1');
+    showToast('ℹ️', '데모 모드', 'API 키를 설정하면 실제 YouTube 영상을 불러올 수 있습니다.');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  VIDEO PLAYER
+// ═══════════════════════════════════════════════
+let playerOpenTime = null;
+
+function openVideo(videoId, title, channel) {
+  document.getElementById('playerTitle').textContent = title;
+  document.getElementById('playerIframe').src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+  document.getElementById('playerBackdrop').classList.remove('hidden');
+  playerOpenTime = Date.now();
+  document.body.style.overflow = 'hidden';
+}
+
+function closePlayer() {
+  document.getElementById('playerBackdrop').classList.add('hidden');
+  document.getElementById('playerIframe').src = '';
+  document.body.style.overflow = '';
+  if (playerOpenTime) {
+    const watchedMins = Math.max(1, Math.floor((Date.now() - playerOpenTime) / 60000));
+    addWatchTime(watchedMins);
+    playerOpenTime = null;
+  }
+}
+
+document.getElementById('playerBackdrop').addEventListener('click', function(e) {
+  if (e.target === this) closePlayer();
+});
+
+// ═══════════════════════════════════════════════
+//  SKELETON & ERROR
+// ═══════════════════════════════════════════════
+function showSkeleton() {
+  let html = `<div class="section-header"><div class="section-title">불러오는 중...</div></div><div class="loading-grid">`;
+  for (let i = 0; i < 12; i++) {
+    html += `<div class="skeleton" style="animation-delay:${i*0.05}s"><div class="skel-thumb"></div><div class="skel-info"><div class="skel-line"></div><div class="skel-line short"></div></div></div>`;
+  }
+  html += '</div>';
+  document.getElementById('contentArea').innerHTML = html;
+}
+
+function showError(msg) {
+  document.getElementById('contentArea').innerHTML = `
+    <div class="error-state">
+      <div class="error-title">⚠️ API 오류</div>
+      <div class="error-sub">${msg}<br><br>API 키를 확인하거나 데모 모드를 사용해 주세요. <button onclick="showApiModal()" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:13px">설정 변경 →</button></div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+function showToast(icon, title, body, danger = false) {
+  const tc = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast' + (danger ? ' danger' : '');
+  t.innerHTML = `<div class="toast-icon">${icon}</div><div><div class="toast-title">${title}</div><div class="toast-body">${body}</div></div>`;
+  tc.appendChild(t);
+  setTimeout(() => t.style.opacity = '0', 4500);
+  setTimeout(() => t.remove(), 5000);
+}
+
+// ═══════════════════════════════════════════════
+//  MISC
+// ═══════════════════════════════════════════════
+function clearData() {
+  if (!confirm('모든 시청 기록을 초기화하시겠습니까?')) return;
+  S.watchData = {}; S.videoCount = 0; save(); updateStats();
+  showToast('🗑️', '초기화 완료', '시청 기록이 삭제되었습니다.');
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  renderKeywords();
+  updateStats();
+  document.getElementById('goalDisplay').textContent = S.dailyGoal + '분';
+
+  if (!S.apiKey) {
+    document.getElementById('apiModal').classList.remove('hidden');
+  } else {
+    loadVideos();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
